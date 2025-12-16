@@ -1,0 +1,880 @@
+<!--
+SARA — Sistema Automático de Relatórios de Adaptação
+
+Copyright (c) 2025 Juliano Benedito Ferreira
+
+Este trabalho está licenciado sob a licença
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+
+Você pode usar, modificar e redistribuir este código,
+desde que seja mantida a atribuição de autoria
+e que versões derivadas utilizem a mesma licença.
+
+Licença completa:
+https://creativecommons.org/licenses/by-sa/4.0/
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SARA - Sistema Automático de Relatórios de Adaptação</title>
+    
+    <!-- Google Fonts: Roboto (Leitura) e League Spartan (Marca) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'spartan': ['"League Spartan"', 'sans-serif'],
+                        'roboto': ['"Roboto"', 'sans-serif'],
+                    },
+                    colors: {
+                        sara: {
+                            dark: '#0e7c81',   // Teal Escuro
+                            brand: '#27c0c5',  // Azul Principal
+                            light: '#e0f7fa',  // Fundo Claro
+                            text: '#111827',   // Preto quase puro
+                            sub: '#115e59',    // Teal Profundo
+                            bg: '#f8fafc',     // Fundo Página mais neutro
+                            
+                            // Cores Dark Mode
+                            'dark-bg': '#0f172a',
+                            'dark-surface': '#1e293b',
+                            'dark-text': '#f1f5f9',
+                        }
+                    },
+                    keyframes: {
+                        slideDown: {
+                            '0%': { opacity: '0', transform: 'translateY(-10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    },
+                    animation: {
+                        'slide-down': 'slideDown 0.3s ease-out forwards',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --base-font-size: 16px;
+        }
+
+        html {
+            font-size: var(--base-font-size);
+            transition: font-size 0.2s ease;
+        }
+
+        body {
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8fafc;
+            color: #111827;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .dark body {
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        /* Responsividade Mobile */
+        @media (max-width: 1023px) {
+            body {
+                height: auto;
+                overflow-y: auto;
+            }
+            .dashboard-wrapper {
+                height: auto !important;
+                display: block !important;
+            }
+            #mainContainer {
+                overflow: visible !important;
+                height: auto !important;
+            }
+            #formulario {
+                height: auto !important;
+                max-height: none !important;
+            }
+        }
+        
+        .bg-gradient-sara {
+            background: linear-gradient(135deg, #0f766e 0%, #27c0c5 100%);
+        }
+        
+        .text-gradient-sara {
+            background: linear-gradient(135deg, #0f766e 0%, #27c0c5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Scrollbar Refinada */
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .dark .custom-scroll::-webkit-scrollbar-thumb {
+            background: #475569; 
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background-color: white; height: auto; overflow: visible; }
+        }
+        .print-only { display: none; }
+        
+        /* PDF Preview Styles - TRAVAMENTO RIGOROSO */
+        .pdf-content {
+            width: 210mm;
+            height: 297mm; /* Altura fixa para evitar página em branco extra */
+            padding: 0;
+            margin: 0 auto;
+            position: relative;
+            background: white;
+            /* box-shadow removido no print, visivel na tela */
+            color: black;
+            font-size: 16px !important;
+            line-height: 1.5 !important;
+            overflow: hidden; /* Corta qualquer excesso */
+        }
+        
+        /* Forçar tamanhos fixos para garantir layout idêntico ao original */
+        .pdf-content .text-xs { font-size: 12px !important; line-height: 1.4 !important; }
+        .pdf-content .text-sm { font-size: 14px !important; line-height: 1.5 !important; }
+        .pdf-content .text-base { font-size: 16px !important; line-height: 1.6 !important; }
+        .pdf-content .text-lg { font-size: 18px !important; line-height: 1.4 !important; }
+        .pdf-content .text-xl { font-size: 20px !important; }
+        
+        /* Espaçamentos fixos em px para ignorar zoom da interface */
+        .pdf-content .p-5 { padding: 20px !important; }
+        .pdf-content .p-4 { padding: 16px !important; }
+        .pdf-content .mt-8 { margin-top: 32px !important; }
+        .pdf-content .mt-12 { margin-top: 48px !important; }
+        .pdf-content .gap-8 { gap: 32px !important; }
+        .pdf-content .mb-1 { margin-bottom: 4px !important; }
+        .pdf-content .mb-2 { margin-bottom: 8px !important; }
+        .pdf-content .border-b-2 { border-bottom-width: 2px !important; }
+        
+        /* Posicionamento Específico do Conteúdo */
+        .content-overlay {
+            position: relative;
+            z-index: 2;
+            padding: 20mm; /* Margem padrão A4 */
+            background: transparent;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .template-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        /* Focus Styles */
+        input:focus, select:focus, textarea:focus, button:focus-visible {
+            outline: none;
+            border-color: #0e7c81;
+            box-shadow: 0 0 0 3px rgba(39, 192, 197, 0.25);
+        }
+        .dark input:focus, .dark select:focus, .dark textarea:focus {
+            border-color: #27c0c5;
+            box-shadow: 0 0 0 3px rgba(39, 192, 197, 0.15);
+        }
+
+        /* Labels */
+        label {
+            color: #475569; 
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .dark label {
+            color: #94a3b8;
+        }
+
+        /* Botões */
+        .btn-primary {
+            background: linear-gradient(135deg, #0e7490 0%, #06b6d4 100%);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+        .dark .btn-primary {
+            background: linear-gradient(135deg, #115e59 0%, #14b8a6 100%);
+        }
+        .btn-primary:hover {
+            filter: brightness(110%);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 10px -2px rgba(0, 0, 0, 0.15);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            transition: all 0.2s;
+        }
+        .dark .btn-secondary {
+            background-color: #1e293b;
+            border-color: #475569;
+            color: #e2e8f0;
+        }
+        .btn-secondary:hover {
+            border-color: #94a3b8;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .dark .btn-secondary:hover {
+            background-color: #334155;
+            color: #ffffff;
+        }
+
+        .btn-ghost {
+            color: #64748b;
+            transition: color 0.2s;
+        }
+        .dark .btn-ghost {
+            color: #94a3b8;
+        }
+        .btn-ghost:hover {
+            color: #ef4444; 
+        }
+        
+        .btn-accent-outline {
+            background-color: white;
+            border: 1px solid #cffafe;
+            color: #0891b2;
+            font-weight: 600;
+        }
+        .dark .btn-accent-outline {
+            background-color: rgba(15, 118, 110, 0.1);
+            border-color: #0f766e;
+            color: #2dd4bf;
+        }
+        .btn-accent-outline:hover {
+            background-color: #ecfeff;
+            border-color: #22d3ee;
+        }
+
+        /* Acessibilidade Buttons */
+        .btn-a11y {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 6px;
+            background-color: white;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+        .dark .btn-a11y {
+            background-color: #1e293b;
+            border-color: #334155;
+            color: #cbd5e1;
+        }
+        .btn-a11y:hover {
+            background-color: #f8fafc;
+            color: #0e7c81;
+            border-color: #cbd5e1;
+        }
+        .dark .btn-a11y:hover {
+            background-color: #334155;
+            color: #2dd4bf;
+        }
+
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="text-sara-text antialiased transition-colors duration-300">
+    
+    <div class="dashboard-wrapper h-full flex flex-col mx-auto w-full">
+        
+        <!-- Header -->
+        <header class="no-print bg-white dark:bg-sara-dark-surface shadow-sm px-6 py-3 flex flex-col md:flex-row items-center justify-between shrink-0 z-20 border-b border-gray-200 dark:border-gray-700 relative gap-4 transition-colors duration-300">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-lg bg-gradient-sara flex items-center justify-center shadow-lg transform hover:rotate-3 transition-transform duration-300">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 11L11 13L15 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="text-center md:text-left">
+                    <h1 class="font-spartan font-extrabold text-2xl tracking-tight leading-none text-gradient-sara uppercase" aria-label="SARA">SARA</h1>
+                    <p class="font-roboto font-medium text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-0.5">
+                        Sistema Automático de Relatórios de Adaptação
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1 mr-2 p-1 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700" role="toolbar" aria-label="Ferramentas de Acessibilidade">
+                    <button id="btnDecreaseFont" class="btn-a11y" aria-label="Diminuir Fonte" title="Diminuir Fonte">
+                        <span class="text-xs font-bold">A-</span>
+                    </button>
+                    <button id="btnIncreaseFont" class="btn-a11y" aria-label="Aumentar Fonte" title="Aumentar Fonte">
+                        <span class="text-lg font-bold">A+</span>
+                    </button>
+                    <div class="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+                    <button id="btnToggleTheme" class="btn-a11y" aria-label="Alternar Tema Escuro" title="Alternar Tema">
+                        <span id="themeIcon" class="text-sm">🌙</span>
+                    </button>
+                </div>
+
+                <button id="btnSobre" class="btn-accent-outline flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500" aria-label="Sobre o Sistema">
+                    <span>Sobre</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Conteúdo Principal -->
+        <main class="flex-1 overflow-hidden relative w-full bg-slate-50 dark:bg-gray-900 transition-colors duration-300" id="mainContainer">
+            <div class="h-full w-full max-w-7xl mx-auto p-4 md:p-6 flex flex-col justify-center">
+                
+                <div id="formulario" class="bg-white dark:bg-sara-dark-surface rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-hidden animate-slide-down transition-colors duration-300">
+                    
+                    <div class="px-8 py-4 bg-white dark:bg-sara-dark-surface border-b border-gray-100 dark:border-gray-700 flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl" aria-hidden="true">📝</span>
+                            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">Novo Relatório de Adaptação</h2>
+                        </div>
+                        <span class="text-[10px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-900/30 px-3 py-1 rounded-full border border-cyan-100 dark:border-cyan-800 uppercase tracking-wider">
+                            Preenchimento
+                        </span>
+                    </div>
+
+                    <form id="relatorioForm" class="flex-1 overflow-y-auto custom-scroll p-6 md:p-8">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 h-full">
+                            
+                            <div class="lg:col-span-5 flex flex-col gap-6">
+                                <div class="p-5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 shadow-sm transition-colors duration-300">
+                                    <h3 class="text-xs font-extrabold text-cyan-800 dark:text-cyan-400 mb-5 pb-2 border-b border-gray-200 dark:border-gray-600 uppercase tracking-wider flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                                        Dados do Material
+                                    </h3>
+                                    
+                                    <div class="flex flex-col gap-5 mb-5">
+                                        <div>
+                                            <label for="tipoMaterial" class="block mb-2">Tipo de Material Adaptado</label>
+                                            <select id="tipoMaterial" required class="w-full p-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:border-cyan-500 transition-colors cursor-pointer shadow-sm">
+                                                <option value="">Selecione o tipo (ex: Livro, Artigo)...</option>
+                                                <option value="Artigo">Artigo</option>
+                                                <option value="Livro">Livro</option>
+                                                <option value="Capítulo">Capítulo</option>
+                                                <option value="Dissertação">Dissertação</option>
+                                                <option value="Tese">Tese</option>
+                                                <option value="Manual">Manual</option>
+                                                <option value="Apostila">Apostila</option>
+                                                <option value="Outro">Outro</option>
+                                            </select>
+                                            <div id="tipoMaterialOutro" class="mt-3 hidden">
+                                                <input type="text" id="tipoMaterialCustom" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm" placeholder="Especifique o tipo de material...">
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label for="dataAdaptacao" class="block mb-2">Data de Finalização da Adaptação</label>
+                                            <input type="date" id="dataAdaptacao" required class="w-full p-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:border-cyan-500 transition-colors cursor-pointer shadow-sm">
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label for="referencia" class="block mb-2">Referência Bibliográfica Completa (ABNT)</label>
+                                        <textarea id="referencia" required class="w-full h-40 p-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:border-cyan-500 transition-colors resize-none leading-relaxed shadow-sm placeholder-gray-400 dark:placeholder-gray-500" placeholder="Cole aqui a referência completa. Ex: SOBRENOME, Nome. Título: subtítulo. Edição. Cidade: Editora, Ano."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="lg:col-span-7 flex flex-col h-full">
+                                <div class="flex-1 flex flex-col rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-5 h-full shadow-sm transition-colors duration-300 overflow-hidden">
+                                    <div class="flex justify-between items-center mb-2 pb-3 border-b border-gray-200 dark:border-gray-600 shrink-0">
+                                        <h3 class="text-xs font-extrabold text-cyan-800 dark:text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                            Equipe Técnica Responsável
+                                        </h3>
+                                        <button type="button" id="adicionarCredito" class="text-xs font-bold text-white bg-gradient-sara hover:brightness-110 px-4 py-2 rounded-lg transition-all shadow-md flex items-center gap-2 active:scale-95">
+                                            <span class="text-lg leading-none" aria-hidden="true">+</span> Adicionar Participante
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="creditosContainer" class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-3 min-h-0 pt-2 pb-2">
+                                        <!-- Itens inseridos via JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </form>
+
+                    <div class="px-8 py-5 bg-white dark:bg-sara-dark-surface border-t border-gray-100 dark:border-gray-700 flex justify-between items-center shrink-0 transition-colors duration-300 z-10">
+                        <div class="text-[11px] text-gray-400 dark:text-gray-500 font-medium hidden sm:flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-red-400"></span> Todos os campos são obrigatórios
+                        </div>
+                        <div class="flex gap-4 w-full sm:w-auto justify-end">
+                            <button type="button" id="limparForm" class="btn-ghost text-sm font-bold px-5 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                                Limpar
+                            </button>
+                            <button type="submit" form="relatorioForm" class="btn-primary font-bold py-3 px-8 rounded-lg text-sm uppercase tracking-wide flex items-center gap-2 shadow-lg hover:shadow-cyan-500/20">
+                                <span>Gerar Relatório PDF</span>
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <footer class="mt-4 text-center text-[11px] text-gray-400 dark:text-gray-600 shrink-0 no-print transition-colors duration-300">
+                    SARA &bull; Licença CC BY-SA 4.0 &bull; Desenvolvido por Juliano Benedito Ferreira
+                </footer>
+
+                <div id="relatorioGerado" class="hidden absolute inset-0 z-40 bg-gray-100 dark:bg-gray-900 flex flex-col transition-colors duration-300">
+                    <div class="bg-white dark:bg-sara-dark-surface shadow-md px-8 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
+                        <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">✓</span> 
+                            Relatório Gerado com Sucesso
+                        </h2>
+                        <div class="flex gap-4">
+                             <button id="voltarForm" class="btn-secondary px-6 py-2.5 rounded-lg font-bold text-sm">
+                                Voltar e Editar
+                            </button>
+                            <button id="downloadPDF" class="btn-primary px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Baixar PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-auto custom-scroll p-8 flex justify-center bg-gray-200/50 dark:bg-black/20">
+                        <div id="conteudoRelatorio" class="shadow-2xl bg-white origin-top transition-transform duration-300">
+                            <!-- Layout PDF Final (Estrutura interna) -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal "Sobre" -->
+    <div id="modalSobre" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop" aria-labelledby="modalTitle" role="dialog" aria-modal="true">
+        <div class="bg-white dark:bg-sara-dark-surface rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border-t-8 border-sara-brand animate-slide-down transition-colors duration-300">
+            <div class="p-8 pb-6">
+                <div class="flex justify-between items-start mb-6">
+                    <h3 id="modalTitle" class="text-2xl font-spartan font-bold text-gray-800 dark:text-gray-100 tracking-tight">Sobre o SARA</h3>
+                    <button id="fecharModal" class="text-gray-400 hover:text-red-500 transition-colors text-3xl leading-none px-2" aria-label="Fechar">&times;</button>
+                </div>
+                
+                <div class="space-y-6 text-gray-600 dark:text-gray-300 font-roboto text-sm leading-relaxed">
+                    <p>
+                        O <strong>Sistema Automático de Relatórios de Adaptação (SARA)</strong> é uma ferramenta web para padronizar e agilizar a criação de relatórios de materiais acessíveis, gerando documentos PDF formatados automaticamente.
+                    </p>
+                    
+                    <div class="border-t border-gray-100 dark:border-gray-700 pt-4">
+                        <h4 class="font-bold text-cyan-800 dark:text-cyan-400 mb-2 uppercase text-xs tracking-wider">Licença</h4>
+                        <p class="text-xs">
+                            Distribuído sob licença <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">Creative Commons Atribuição–CompartilhaIgual 4.0 (CC BY-SA 4.0)</a>.
+                        </p>
+                    </div>
+                    
+                    <div class="bg-gray-50 dark:bg-gray-800 p-5 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <h4 class="font-bold text-gray-800 dark:text-gray-200 mb-3 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">Autoria</h4>
+                        <div class="space-y-1 text-sm">
+                            <p class="font-bold text-gray-900 dark:text-white">Desenvolvido por Juliano Benedito Ferreira</p>
+                            <p class="text-gray-600 dark:text-gray-400">Bibliotecário CRB-8/9411</p>
+                            <a href="mailto:julianob@unicamp.br" class="text-cyan-600 dark:text-cyan-400 hover:underline block">julianob@unicamp.br</a>
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">2025</p>
+                        </div>
+                    </div>
+
+                    <div class="text-center pt-2 space-y-1">
+                        <p class="font-bold text-gray-800 dark:text-gray-200 text-sm">Divisão de Tratamento da Informação (DTRI)</p>
+                        <p class="font-medium text-gray-600 dark:text-gray-400 text-sm">Sistema de Bibliotecas da Unicamp (SBU)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-800 px-8 py-4 flex justify-end border-t border-gray-100 dark:border-gray-700">
+                <button id="btnFecharModalBottom" class="btn-secondary font-bold py-2 px-6 rounded-lg text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Lógica -->
+    <script>
+        let contadorCreditos = 1;
+        let templateImage = null; 
+
+        // --- Acessibilidade ---
+        const html = document.documentElement;
+        const btnToggleTheme = document.getElementById('btnToggleTheme');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        function updateThemeIcon() {
+            themeIcon.textContent = html.classList.contains('dark') ? '☀️' : '🌙';
+        }
+
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+        }
+        updateThemeIcon();
+
+        btnToggleTheme.addEventListener('click', () => {
+            html.classList.toggle('dark');
+            localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+            updateThemeIcon();
+        });
+
+        const btnIncreaseFont = document.getElementById('btnIncreaseFont');
+        const btnDecreaseFont = document.getElementById('btnDecreaseFont');
+        let currentFontSize = 16;
+
+        function updateFontSize() {
+            html.style.setProperty('--base-font-size', `${currentFontSize}px`);
+        }
+        btnIncreaseFont.addEventListener('click', () => { if (currentFontSize < 22) { currentFontSize++; updateFontSize(); } });
+        btnDecreaseFont.addEventListener('click', () => { if (currentFontSize > 13) { currentFontSize--; updateFontSize(); } });
+
+        // Carregar template
+        window.addEventListener('load', function() {
+            document.getElementById('adicionarCredito').click();
+            const img = new Image();
+            img.crossOrigin = 'anonymous'; 
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                templateImage = canvas.toDataURL('image/jpeg');
+            };
+            img.onerror = function() { templateImage = 'https://i.imgur.com/VM47MLH.jpeg'; };
+            img.src = 'https://i.imgur.com/VM47MLH.jpeg';
+        });
+
+        // Modal
+        const modal = document.getElementById('modalSobre');
+        const btnSobre = document.getElementById('btnSobre');
+        const btnFechar = document.getElementById('fecharModal');
+        const btnFecharBottom = document.getElementById('btnFecharModalBottom');
+
+        function toggleModal(show) {
+            if(show) {
+                modal.classList.remove('hidden');
+                btnFechar.focus();
+            } else {
+                modal.classList.add('hidden');
+                btnSobre.focus();
+            }
+        }
+
+        btnSobre.addEventListener('click', () => toggleModal(true));
+        btnFechar.addEventListener('click', () => toggleModal(false));
+        btnFecharBottom.addEventListener('click', () => toggleModal(false));
+        modal.addEventListener('click', (e) => { if (e.target === modal) toggleModal(false); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) toggleModal(false); });
+
+        // Form
+        document.getElementById('tipoMaterial').addEventListener('change', function() {
+            const outroDiv = document.getElementById('tipoMaterialOutro');
+            const customInput = document.getElementById('tipoMaterialCustom');
+            if (this.value === 'Outro') {
+                outroDiv.classList.remove('hidden');
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                outroDiv.classList.add('hidden');
+                customInput.required = false;
+                customInput.value = '';
+            }
+        });
+
+        function toggleFuncaoOutro(selectElement) {
+            const outroDiv = selectElement.parentElement.querySelector('.funcao-outro');
+            const customInput = selectElement.parentElement.querySelector('.funcao-custom');
+            if (selectElement.value === 'Outro') {
+                outroDiv.classList.remove('hidden');
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                outroDiv.classList.add('hidden');
+                customInput.required = false;
+                customInput.value = '';
+            }
+        }
+
+        const creditoTemplate = `
+            <div class="flex flex-col sm:flex-row gap-4 items-start w-full bg-white dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm relative group transition-all duration-300 hover:border-cyan-300 dark:hover:border-cyan-700 hover:shadow-md animate-slide-down">
+                <div class="w-full sm:w-5/12">
+                    <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Função Desempenhada</label>
+                    <select class="funcao w-full p-2.5 border border-gray-300 dark:border-gray-500 rounded-lg text-sm bg-gray-50 dark:bg-gray-800 focus:bg-white dark:focus:bg-gray-800 focus:border-cyan-500 transition-colors text-gray-800 dark:text-gray-100 cursor-pointer" onchange="toggleFuncaoOutro(this)">
+                        <option value="">Selecione a função...</option>
+                        <option value="Adaptado por">Adaptado por</option>
+                        <option value="Traduzido por">Traduzido por</option>
+                        <option value="Narrado por">Narrado por</option>
+                        <option value="Revisado por">Revisado por</option>
+                        <option value="Convertido por">Convertido por</option>
+                        <option value="Transcrito por">Transcrito por</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                    <div class="funcao-outro mt-2 hidden">
+                        <input type="text" class="funcao-custom w-full p-2.5 border border-gray-300 dark:border-gray-500 rounded-lg text-sm dark:bg-gray-800 dark:text-white" placeholder="Especifique a função...">
+                    </div>
+                </div>
+                <div class="w-full sm:w-7/12">
+                    <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Nome Completo do Responsável</label>
+                    <div class="flex gap-2">
+                        <input type="text" class="nome w-full p-2.5 border border-gray-300 dark:border-gray-500 rounded-lg text-sm focus:border-cyan-500 transition-colors text-gray-800 dark:text-gray-100 dark:bg-gray-800" placeholder="Nome completo">
+                        <button type="button" class="text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors px-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20" onclick="removerCredito(this)" title="Remover participante" aria-label="Remover">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('adicionarCredito').addEventListener('click', function() {
+            contadorCreditos++;
+            const container = document.getElementById('creditosContainer');
+            const novoCredito = document.createElement('div');
+            novoCredito.innerHTML = creditoTemplate.trim();
+            const elementoReal = novoCredito.firstChild;
+            container.prepend(elementoReal);
+            container.scrollTop = 0;
+            setTimeout(() => {
+                const select = elementoReal.querySelector('select');
+                if(select) select.focus();
+            }, 100);
+        });
+
+        function removerCredito(botao) {
+            const container = document.getElementById('creditosContainer');
+            if (container.children.length <= 1) {
+                const item = botao.closest('div.relative'); 
+                if(item) {
+                    item.querySelectorAll('input').forEach(i => i.value = '');
+                    item.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+                }
+                return;
+            }
+            const card = botao.closest('div.relative'); 
+            if(card) card.remove();
+        }
+
+        document.getElementById('relatorioForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            let tipoMaterial = document.getElementById('tipoMaterial').value;
+            const referencia = document.getElementById('referencia').value;
+            const dataAdaptacao = document.getElementById('dataAdaptacao').value;
+            
+            if (tipoMaterial === 'Outro') {
+                const tipoCustom = document.getElementById('tipoMaterialCustom').value.trim();
+                if (!tipoCustom) { alert('Por favor, especifique o tipo de material.'); return; }
+                tipoMaterial = tipoCustom;
+            }
+            
+            const container = document.getElementById('creditosContainer');
+            const creditosItems = container.querySelectorAll('.group');
+            let creditos = [];
+            let temErro = false;
+            
+            creditosItems.forEach(item => {
+                let funcao = item.querySelector('.funcao').value;
+                const nome = item.querySelector('.nome').value.trim();
+                if (funcao === 'Outro') {
+                    const funcaoCustom = item.querySelector('.funcao-custom').value.trim();
+                    if (!funcaoCustom) { alert('Por favor, descreva a função personalizada.'); temErro = true; return; }
+                    funcao = funcaoCustom;
+                }
+                if (funcao && nome) { creditos.push({ funcao, nome }); }
+            });
+
+            if (temErro) return;
+            if (!tipoMaterial || !referencia || !dataAdaptacao || creditos.length === 0) {
+                alert('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+
+            const partesData = dataAdaptacao.split('-');
+            const dataFormatada = `${partesData[2]}/${partesData[1]}/${partesData[0]}`;
+            const creditosTexto = creditos.map(c => `<span class="font-bold">${c.funcao}:</span> ${c.nome}`).join('<br>');
+            
+            // CONTEÚDO PDF ORIGINAL (Restaurado para alinhamento correto)
+            const conteudoRelatorio = `
+                <div class="pdf-content font-roboto">
+                    ${templateImage ? `<img src="${templateImage}" alt="Template" class="template-background">` : ''}
+                    <div class="content-overlay">
+                        <div style="margin-top: 130px; display: flex; flex-direction: column; gap: 32px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                                <div>
+                                    <h3 class="font-bold text-black mb-1 uppercase text-xs tracking-wider">Tipo de Material</h3>
+                                    <p class="text-black font-medium text-lg border-b-2 border-black pb-1">${tipoMaterial}</p>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-black mb-1 uppercase text-xs tracking-wider">Data de Adaptação</h3>
+                                    <p class="text-black font-medium text-lg border-b-2 border-black pb-1">${dataFormatada}</p>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h3 class="font-bold text-black mb-2 uppercase text-xs tracking-wider">Referência Bibliográfica Original</h3>
+                                <div class="p-5 bg-white bg-opacity-90 rounded border-2 border-black shadow-sm">
+                                    <p class="text-black leading-relaxed text-justify font-serif text-base">${referencia}</p>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h3 class="font-bold text-black mb-2 uppercase text-xs tracking-wider">Créditos da Adaptação</h3>
+                                <div class="p-5 bg-white bg-opacity-90 rounded border-2 border-black shadow-sm">
+                                    <div class="text-black leading-loose text-base">${creditosTexto}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4 bg-white bg-opacity-95 border-l-4 border-black rounded shadow-sm" style="margin-top: 16px;">
+                                <p class="text-black text-xs leading-relaxed text-justify">
+                                    <strong>Nota Legal:</strong> O material anexo foi adaptado pelo Laboratório de Acessibilidade Informacional (LABACES) do Sistema de Bibliotecas da Unicamp (SBU). Esse serviço encontra-se ancorado na Lei de Inclusão Brasileira nº 13.146 de 06 de julho de 2015, Lei dos Direitos Autorais nº 9.610 de 19 de fevereiro de 1998, e o Tratado de Marraqueche, promulgado por meio do Decreto nº 9.522/2018.
+                                </p>
+                            </div>
+                            
+                            <div class="absolute bottom-12 left-0 w-full text-center px-20">
+                                <div class="text-sm bg-white bg-opacity-90 py-2 px-4 rounded-full inline-block border border-black shadow-sm">
+                                    <span class="font-bold text-black">Repositório Acessível Isadora</span>
+                                    <span class="mx-2 text-gray-400">|</span>
+                                    <span class="text-blue-900 font-bold">bibliotecadigital.unicamp.br/isadora/</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('conteudoRelatorio').innerHTML = conteudoRelatorio;
+            const result = document.getElementById('relatorioGerado');
+            result.classList.remove('hidden');
+            result.classList.add('animate-slide-down');
+            
+            setTimeout(() => {
+                const container = document.getElementById('conteudoRelatorio');
+                const wrapper = result.querySelector('.overflow-auto');
+                if(wrapper.offsetWidth < 800) {
+                    const scale = (wrapper.offsetWidth - 40) / 800; 
+                    container.style.transform = `scale(${scale})`;
+                    container.style.transformOrigin = 'top center';
+                } else {
+                    container.style.transform = 'none';
+                }
+            }, 100);
+        });
+
+        document.getElementById('voltarForm').addEventListener('click', function() {
+            const result = document.getElementById('relatorioGerado');
+            result.classList.add('hidden');
+        });
+
+        document.getElementById('downloadPDF').addEventListener('click', async function() {
+            const button = this;
+            const originalContent = button.innerHTML;
+            button.innerHTML = '⏳ Processando...';
+            button.disabled = true;
+            
+            try {
+                const wrapper = document.getElementById('conteudoRelatorio');
+                const elemento = wrapper.querySelector('.pdf-content');
+                
+                // Remover zoom temporariamente para captura
+                const originalTransform = wrapper.style.transform;
+                wrapper.style.transform = 'none';
+                
+                // Forçar scroll para o topo para garantir captura correta
+                window.scrollTo(0,0);
+
+                const canvas = await html2canvas(elemento, {
+                    scale: 2, // Boa qualidade (retina)
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    width: 794, // Largura A4 em px (aprox 96dpi) - força corte lateral
+                    height: 1123, // Altura A4 em px - força corte vertical
+                    windowWidth: 794,
+                    windowHeight: 1123,
+                    scrollX: 0,
+                    scrollY: 0
+                });
+                
+                wrapper.style.transform = originalTransform;
+                
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                // 'p', 'mm', 'a4' -> A4 é 210x297mm
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Adiciona imagem cobrindo exatamente a página A4 (210x297)
+                pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+                
+                const tipoMaterial = document.getElementById('tipoMaterial').value;
+                const dataAdaptacao = document.getElementById('dataAdaptacao').value;
+                const fileNameSafe = tipoMaterial.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                
+                pdf.save(`SARA_${fileNameSafe}_${dataAdaptacao}.pdf`);
+                
+            } catch (error) {
+                console.error(error);
+                alert('Erro técnico ao gerar PDF. Consulte o console.');
+            } finally {
+                button.innerHTML = originalContent;
+                button.disabled = false;
+            }
+        });
+
+        document.getElementById('limparForm').addEventListener('click', function() {
+            if (confirm('Deseja realmente limpar todos os campos e recomeçar?')) {
+                document.getElementById('relatorioForm').reset();
+                document.getElementById('creditosContainer').innerHTML = '';
+                document.getElementById('adicionarCredito').click();
+            }
+        });
+    </script>
+</body>
+</html>
